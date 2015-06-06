@@ -1,0 +1,14 @@
+#!/bin/bash
+
+ES_HOST=${ELASTICSEARCH_PORT_9200_TCP_ADDR:-$ES_HOST}
+ES_PORT=${ELASTICSEARCH_PORT_9200_TCP_PORT:-$ES_PORT}
+
+echo '' > /etc/ls.conf
+set -m
+trap 'kill $(jobs -p)' EXIT
+#trap "exit" CHLD
+
+logstash agent --config /etc/ls.conf &
+sleep 10
+#TODO if logstash shits the bed, the container will still go on. need to make this more robust with systemd maybe
+/usr/local/bin/docker-gen -watch -notify "kill -s 1 $!" /root/fluentd.tmpl /etc/fluentd/fluentd.conf
