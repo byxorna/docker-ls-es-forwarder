@@ -1,0 +1,48 @@
+
+input {
+{{range $key, $value := .}}
+{{ $isMesos := hasPrefix "mesos-" $value.Name }}{{$mesosTask := trimPrefix "mesos-" $value.Name}}
+  file {
+    source => "/var/lib/docker/containers/{{ $value.ID }}/{{ $value.ID }}-json.log"
+    codec => "json"
+    type => "docker"
+    tags => ["docker.container.{{printf "%.*s" 12 $value.ID}}"]
+    add_field => {
+      "tag" => "docker.filtered.{{printf "%.*s" 12 $value.ID}}",
+      "image" =>  "{{ $value.Image }}",
+      "host" =>  "${hostname}",
+      "registry" => "{{ $value.Image.Registry }}",
+      "version" => "{{ $value.Image.Tag }}",
+      "name" => "{{ $value.Name }}",
+      "collins_nodeclass" => "<%= @collins['NODECLASS'] %>",
+      "collins_pool" => "<%= @collins['POOL'] %>",
+      "collins_primary_role" => "<%= @collins['PRIMARY_ROLE'] %>",
+      "collins_secondary_role" => "<%= @collins['SECONDARY_ROLE'] %>",
+      "collins_hostname" => "<%= @collins['HOSTNAME'] %>",
+      "collins_status" => "<%= @collins['STATUS'] %>",
+      {{if $isMesos}}"mesostask" => "{{ $mesosTask }}",{{end}}
+    }
+  }
+{{end}}
+}
+
+filter {
+  date {
+    # populate the @timestamp field
+    # time_format %Y-%m-%dT%H:%M:%S.%N%Z
+    # {"log":"WARNING:  no rubyforge_project specified\n","stream":"stderr","time":"2015-05-29T14:00:19.584483618Z"}
+    match => ["time", "ISO8601"]
+  }
+  mutate {
+    rename => { "log" => "message" }
+    strip => "message"
+    remove_field => ["time"]
+  }
+}
+#output {
+  #elasticsearch {
+  #  host {{ .Env.ES_HOST }}
+  #  port {{ .Env.ES_PORT }}
+  #}
+
+#}
